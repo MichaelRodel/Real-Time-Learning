@@ -9,6 +9,12 @@ from depth_trackers.depth_analysis import depth_from_h264_vectors
 from mapping.utils.Constants import Constants
 from mapping.utils.file import load_camera_data_json
 
+import open3d as o3d
+
+# from sklearn.decomposition import PCA  # new
+#
+# pca = PCA(n_components=3)
+
 cloud = np.empty((0, 3))
 image = np.full((200, 200, 3), 255, dtype=np.uint8)
 
@@ -30,15 +36,43 @@ def topdown_view(depth: np.ndarray, angle: float, max_dist: float = 1500):
 
 
 def show_cloud():
-    fig = plt.figure()
-    ax = fig.add_subplot(projection='3d')
-    to_show = np.random.choice(cloud.shape[0], 1000, replace=True)
-    ax.scatter(cloud[to_show, 0], cloud[to_show, 1], cloud[to_show, 2])
-    ax.set_box_aspect((np.ptp(cloud[to_show, 0]), np.ptp(cloud[to_show, 1]), np.ptp(cloud[to_show, 2])))
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-    plt.show()
+    # new begin
+    global cloud
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(cloud)
+    o3d.visualization.draw_geometries([pcd])
+
+    # detect outliers
+    # Statistical outlier removal
+    cl, ind = pcd.remove_statistical_outlier(nb_neighbors=4, std_ratio=0.8)
+    inlier_cloud = cl.select_by_index(ind)
+    o3d.visualization.draw_geometries([inlier_cloud])
+    # Radius outlier removal
+    cl, ind = pcd.remove_radius_outlier(nb_points=4, radius=0.09)
+    inlier_cloud = cl.select_by_index(ind)
+    o3d.visualization.draw_geometries([inlier_cloud])
+
+    # boundary detection
+    # boundarys, mask = pcd.get_axis_aligned_bounding_box()
+    # boundarys = boundarys.paint_uniform_color([1.0, 0.0, 0.0])
+    # pcd = pcd.paint_uniform_color([0.6, 0.6, 0.6])
+    # o3d.visualization.draw_geometries([pcd.to_legacy(), boundarys.to_legacy()],
+    #                                   zoom=0.3412,
+    #                                   front=[0.3257, -0.2125, -0.8795],
+    #                                   lookat=[2.6172, 2.0475, 1.532],
+    #                                   up=[-0.0694, -0.9768, 0.2024])
+
+    # new end
+
+    # fig = plt.figure()
+    # ax = fig.add_subplot(projection='3d')
+    # to_show = np.random.choice(cloud.shape[0], 1000, replace=True)
+    # ax.scatter(cloud[to_show, 0], cloud[to_show, 1], cloud[to_show, 2])
+    # ax.set_box_aspect((np.ptp(cloud[to_show, 0]), np.ptp(cloud[to_show, 1]), np.ptp(cloud[to_show, 2])))
+    # ax.set_xlabel('X')
+    # ax.set_ylabel('Y')
+    # ax.set_zlabel('Z')
+    # plt.show()
 
 
 save_video: bool = False  # turn off when saved video not required
@@ -61,7 +95,7 @@ if save_video:
 else:
     writer = None  # just to stop warning
 # Initialize the feature detector (e.g., ORB, SIFT, etc.)
-detector = cv2.ORB_create(nfeatures=1000)
+detector = cv2.ORB_create(nfeatures=11000)
 matcher = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=False)
 for angle in tello_angles:
     print(f"{angle=}")
@@ -94,7 +128,7 @@ for angle in tello_angles:
     # Perform the matching
     # matches = matcher.match(descriptors1, descriptors2)
     matches = matcher.knnMatch(descriptors1, descriptors2, k=2)
-    matches = [m for m, n in matches if m.distance < 0.90 * n.distance]
+    matches = [m for m, n in matches if m.distance < 0.9 * n.distance]
     print(len(matches), "matches using ORB")
     # show matches
 
@@ -111,7 +145,8 @@ for angle in tello_angles:
     if top_down and len(depth) != 0:
         top_down_frame = topdown_view(np.hstack((points1, depth[:, None])), angle)
         if show_video:
-            cv2.imshow("depth top down", top_down_frame)
+            cv2.imshow("cloud depth top down", top_down_frame)
+
     if show_depth_frame:
         depth_frame = frame1.copy()
         int_points1 = points1.astype(int)
@@ -121,7 +156,52 @@ for angle in tello_angles:
             cv2.rectangle(depth_frame, point - 5, point + 5, color, -1)
         if show_video:
             cv2.imshow("depth ORB", depth_frame)
-            cv2.waitKey(10)  # need some minimum time because opencv doesn't work without it
+            cv2.waitKey(1)  # need some minimum time because opencv doesn't work without it
+
+            # # Apply edge detection method on the image
+            # edges = cv2.Canny(depth_frame_gray, 50, 150, apertureSize=3)
+            #
+            # # This returns an array of r and theta values
+            # lines = cv2.HoughLines(edges, 1, np.pi / 180, 200)
+            #
+            # # The below for loop runs till r and theta values
+            # # are in the range of the 2d array
+            # if lines is not None:
+            #     for r_theta in lines:
+            #         arr = np.array(r_theta[0], dtype=np.float64)
+            #         r, theta = arr
+            #         # Stores the value of cos(theta) in a
+            #         a = np.cos(theta)
+            #
+            #         # Stores the value of sin(theta) in b
+            #         b = np.sin(theta)
+            #
+            #         # x0 stores the value rcos(theta)
+            #         x0 = a * r
+            #
+            #         # y0 stores the value rsin(theta)
+            #         y0 = b * r
+            #
+            #         # x1 stores the rounded off value of (rcos(theta)-1000sin(theta))
+            #         x1 = int(x0 + 1000 * (-b))
+            #
+            #         # y1 stores the rounded off value of (rsin(theta)+1000cos(theta))
+            #         y1 = int(y0 + 1000 * (a))
+            #
+            #         # x2 stores the rounded off value of (rcos(theta)+1000sin(theta))
+            #         x2 = int(x0 - 1000 * (-b))
+            #
+            #         # y2 stores the rounded off value of (rsin(theta)-1000cos(theta))
+            #         y2 = int(y0 - 1000 * (a))
+            #
+            #         # cv2.line draws a line in img from the point(x1,y1) to (x2,y2).
+            #         # (0,0,255) denotes the colour of the line to be
+            #         # drawn. In this case, it is red.
+            #         cv2.line(depth_frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+            #         cv2.imshow("lines and corners", depth_frame)
+            #         cv2.waitKey(1);
+            #         # end new
+
     if save_video:
         writer.write(depth_frame)
 show_cloud()
