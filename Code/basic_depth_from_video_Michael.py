@@ -20,9 +20,9 @@ depth_cloud = None
 
 def cart3D2pol3D(cart3D_cloud):
     # TODO: check this function
-    x = cart3D_cloud[, :0]
-    y = cart3D_cloud[, :1]
-    z = cart3D_cloud[, :2]
+    x = cart3D_cloud[:, 0]
+    y = cart3D_cloud[:, 1]
+    z = cart3D_cloud[:, 2]
 
     x_2 = x ** 2
     y_2 = y ** 2
@@ -41,9 +41,9 @@ def cart3D2pol3D(cart3D_cloud):
 
 def pol3D2cart3D(pol3D_cloud):
     # TODO: check this function
-    r = pol3D_cloud[, :0]
-    theta = pol3D_cloud[, :1]
-    phi = pol3D_cloud[, :2]
+    r = pol3D_cloud[:, 0]
+    theta = pol3D_cloud[:, 1]
+    phi = pol3D_cloud[:, 2]
     cart3D = [r * np.sin(theta) * np.cos(phi),
               r * np.sin(theta) * np.sin(phi),
               r * np.cos(theta)
@@ -89,7 +89,7 @@ def show_cloud():
 
     # detect outliers
     # Statistical outlier removal
-    cl, ind = pcd.remove_statistical_outlier(nb_neighbors=4, std_ratio=0.8)
+    cl, ind = pcd.remove_statistical_outlier(nb_neighbors=3, std_ratio=0.5)
     inlier_cloud = cl.select_by_index(ind)
     o3d.visualization.draw_geometries([inlier_cloud])
     # Radius outlier removal
