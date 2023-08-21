@@ -84,14 +84,15 @@ def show_cloud():
     o3d.visualization.draw_geometries([pcd])
 
     # new begin
-    clear_cloud(pcd)
+    # clear_cloud(pcd)
     # new end
 
     # detect outliers
     # Statistical outlier removal
-    cl, ind = pcd.remove_statistical_outlier(nb_neighbors=3, std_ratio=0.5)
+    cl, ind = pcd.remove_statistical_outlier(nb_neighbors=3, std_ratio=0.7)
     inlier_cloud = cl.select_by_index(ind)
-    o3d.visualization.draw_geometries([inlier_cloud])
+    o3d.visualization.draw_geometries([inlier_cloud], window_name='Statistical')
+    print("statistical")
     # Radius outlier removal
     # cl, ind = pcd.remove_radius_outlier(nb_points=4, radius=0.09)
     # inlier_cloud = cl.select_by_index(ind)
