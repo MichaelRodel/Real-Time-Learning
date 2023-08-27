@@ -1,2 +1,1 @@
-# Real-Time-Learning
-Real-Time-Learning lab, cleaning noise from point cloud
+# Final code at main brancg "final_code" directory.
